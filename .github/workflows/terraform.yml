@@ -1,0 +1,76 @@
+name: Terraform AMI Pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: Run a Terraform plan or apply
+        required: true
+        type: choice
+        default: plan
+        options:
+          - plan
+          - apply
+      environment:
+        description: GitHub environment that stores AWS credentials + tfvars secret
+        required: true
+        type: string
+        default: production
+      tfvars_filename:
+        description: File name to write tfvars contents to inside infrastructure/
+        required: true
+        type: string
+        default: production.tfvars
+
+concurrency:
+  group: terraform-${{ github.ref }}-${{ inputs.environment || 'manual' }}
+  cancel-in-progress: false
+
+jobs:
+  terraform:
+    name: Terraform ${{ inputs.action }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      TFVARS_PATH: infrastructure/${{ inputs.tfvars_filename }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Restore tfvars file from secret
+        run: |
+          if [ -z "${{ secrets.TF_VARS_B64 }}" ]; then
+            echo "Secret TF_VARS_B64 is not defined for this environment." >&2
+            exit 1
+          fi
+          echo "${{ secrets.TF_VARS_B64 }}" | base64 --decode > "${TFVARS_PATH}"
+
+      - name: Build Lambda packages
+        run: bash scripts/build_lambdas.sh
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.6
+
+      - name: Terraform init
+        run: terraform -chdir=infrastructure init -input=false
+
+      - name: Terraform plan
+        if: inputs.action == 'plan'
+        run: terraform -chdir=infrastructure plan -input=false -var-file="${{ inputs.tfvars_filename }}"
+
+      - name: Terraform apply
+        if: inputs.action == 'apply'
+        run: |
+          terraform -chdir=infrastructure plan -input=false -var-file="${{ inputs.tfvars_filename }}" -out=tfplan
+          terraform -chdir=infrastructure apply -input=false -auto-approve tfplan

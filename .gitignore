@@ -1,0 +1,11 @@
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+tfplan
+*.zip
+lambda/packages/
+terraform.tfvars
+*.pyc
+__pycache__/
+.DS_Store

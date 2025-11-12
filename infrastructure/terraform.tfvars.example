@@ -1,0 +1,37 @@
+aws_region  = "us-east-1"
+environment = "production"
+name_prefix = "ami-pipeline"
+
+tags = {
+  Owner       = "platform-team"
+  CostCenter  = "secops"
+  ServiceTier = "gold"
+}
+
+source_ami_id      = "ami-0c55b159cbfafe1f0"
+notification_email = "ops@example.com"
+schedule_expression = "cron(0 2 ? * SUN *)"
+
+consumer_account_ids = [
+  "123456789012",
+  "987654321098"
+]
+
+launch_template_ids = [
+  "lt-0123456789abcdef0"
+]
+
+auto_scaling_group_names = [
+  "my-asg-production"
+]
+
+imagebuilder_instance_types = [
+  "t3.medium"
+]
+
+# Optional overrides for advanced scenarios
+# ssm_parameter_name                    = "/amis/production/latest-golden-ami"
+# share_ami_package_path                = "../lambda/packages/share_ami.zip"
+# update_launch_template_package_path   = "../lambda/packages/update_launch_template.zip"
+# trigger_instance_refresh_package_path = "../lambda/packages/trigger_instance_refresh.zip"
+# kms_deletion_window_in_days           = 7
