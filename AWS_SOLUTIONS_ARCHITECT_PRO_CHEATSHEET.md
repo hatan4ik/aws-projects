@@ -18,6 +18,31 @@ Status flow suggestion: Backlog -> Deep Dive -> Drill -> Mock Ready. Each row po
 | Resilience and disaster recovery | SLO adherence and customer trust | RTO/RPO strategies (backup/restore, pilot light, warm standby, active-active), AWS Backup, Elastic Disaster Recovery, Route 53 health checks | Produce a DR plan for a tiered app with target RTO/RPOs and failover testing steps | Backlog |
 | Cost and performance efficiency | Operating leverage at scale | EC2 pricing models, Savings Plans vs RI vs Spot, S3 IA/Glacier, Budgets/Cost Explorer/Compute Optimizer, latency tools (CloudFront, Global Accelerator, S3 TA) | Right-size a workload with a savings plan strategy and latency optimizations for global users | Backlog |
 
+## Rapid Exam Review (last-minute hits)
+
+### Numbers & defaults to keep straight
+- CloudTrail event history in console: 90 days. Org Trail is multi-account and multi-region; ship to a log-archive S3 bucket with Object Lock.
+- KMS: CMK optional annual rotation; multi-Region keys keep the same key ID across regions; use an external ID on cross-account KMS usage to avoid confused deputy.
+- S3: Strong read-after-write for new objects and deletes; replication requires versioning; default encryption (SSE-S3) can be enforced with a bucket policy; Object Lock needs versioning + compliance mode for immutability.
+- API Gateway (REST/HTTP): 29s max integration timeout, ~10MB payload. Use WebSocket or ALB/NLB if you need long-lived streams.
+- Lambda: Max 15 minutes, 10GB memory, 512MB `/tmp` by default (can raise to 10GB), one concurrency per execution. Use provisioned concurrency for cold-start sensitive paths.
+- SQS: Standard = at-least-once; FIFO = exactly-once with message groups; throughput ~300 msg/s baseline (3,000 with batching). Default visibility timeout 30s; default retention 4 days (max 14).
+- Kinesis Data Streams: Per shard ~1MB/s (1,000 records/s) writes, ~2MB/s reads; scale shards for parallelism. Use Enhanced Fan-Out for dedicated 2MB/s per consumer.
+- ALB cross-zone is on by default; NLB cross-zone is off by default (enable per NLB). NAT Gateway is AZ-scoped—deploy one per AZ to avoid cross-AZ data charges and single points of failure.
+- Step Functions: Standard retains history 1 year; Express keeps up to 5 minutes. Pick Express for high TPS/short-lived, Standard for durability/auditing.
+- DynamoDB: PITR up to 35 days; global tables for multi-region writes (eventually consistent across regions); DAX gives microsecond cache but no strong consistency.
+
+### Quick service moves when under time pressure
+- Private connectivity: Prefer PrivateLink when a consumer VPC needs private access to a producer service (no routing changes, supports overlapping CIDRs). Use Transit Gateway for transitive routing and many-to-many hub-and-spoke; VPC Peering for simple 1:1 low-latency links.
+- DNS hybrid: Use Route 53 Resolver inbound/outbound endpoints plus conditional forwarders. Keep on-prem DNS forwarding to AWS for private zones; avoid exposing private zones publicly.
+- Edge entry: Use CloudFront for global caching/TLS offload; attach WAF for L7 filtering; Shield Advanced for DDoS-heavy workloads; API Gateway or ALB as the origin depending on protocol.
+- Security posture: SCPs for guardrails, permission boundaries for delegated admin, role chaining with external IDs cross-account, Config for drift, GuardDuty for threat detection, Security Hub to aggregate findings.
+- Storage picks: S3 (object, lifecycle + replication), EFS (multi-AZ POSIX), EBS (block per-AZ, snapshots to S3), FSx (protocol-specific, higher performance). Enable versioning + lifecycle + replication for compliance and cost controls.
+- Database choices: Aurora Global Database (<1s replica lag, dedicated global cluster for DR); RDS Multi-AZ for durability in-region; read replicas are asynchronous (use for reads/DR, not HA writes). DynamoDB for high scale; use Global Tables for multi-region active-active.
+- Resilience: Map RTO/RPO to strategy (backup/restore -> pilot light -> warm standby -> active/active). Use Route 53 health checks with failover routing; test with game days and document runbooks.
+- Cost levers: Savings Plans generally preferred over RIs (compute coverage across EC2/Lambda/Fargate); combine with Spot for interruption-tolerant tiers; S3 lifecycle to IA/Glacier; Budgets + Cost Explorer for guardrails and visibility.
+- Migration: DMS for CDC into cloud; SCT for heterogeneous schema changes; DataSync for online file transfers; Snow Family for offline bulk; plan cutover/rollback with runbooks and metrics-based checkpoints.
+
 ## Design Principles
 
 ### Well-Architected Framework Pillars
