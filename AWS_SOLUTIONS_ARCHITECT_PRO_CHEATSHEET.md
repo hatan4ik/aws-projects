@@ -92,7 +92,264 @@ Root
 - **Route Tables** - One per subnet type minimum
 
 ### Connectivity Patterns
-- **VPC Peering** - 1:1, non-transitive, same/cross-region
+- **VPC Peering** - 1:1 connection, no transitive routing
+- **Transit Gateway** - Hub-and-spoke, transitive routing, cross-region peering
+- **PrivateLink** - Private connectivity to services, no routing changes
+- **Direct Connect** - Dedicated connection, consistent bandwidth
+- **VPN** - Encrypted over internet, backup for DX
+
+### DNS and Service Discovery
+- **Route 53 Resolver** - Hybrid DNS (inbound/outbound endpoints)
+- **Private Hosted Zones** - Internal DNS resolution
+- **Health Checks** - Failover routing policies
+
+## Identity and Access Management
+
+### IAM Best Practices
+- **Principle of Least Privilege** - Minimum required permissions
+- **Role-Based Access** - Use roles over users
+- **Permission Boundaries** - Maximum permissions for delegated admin
+- **External ID** - Prevent confused deputy attacks
+
+### Cross-Account Patterns
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Effect": "Allow",
+    "Principal": {"AWS": "arn:aws:iam::ACCOUNT:root"},
+    "Action": "sts:AssumeRole",
+    "Condition": {
+      "StringEquals": {"sts:ExternalId": "unique-external-id"}
+    }
+  }]
+}
+```
+
+### Security Services
+- **AWS Config** - Configuration compliance
+- **CloudTrail** - API audit logging
+- **GuardDuty** - Threat detection
+- **Security Hub** - Centralized security findings
+- **Macie** - Data classification and protection
+- **Inspector** - Vulnerability assessment
+
+## Compute Services
+
+### EC2 Instance Types
+- **General Purpose** - T4g, M6i, M6a (balanced)
+- **Compute Optimized** - C6i, C6a (CPU intensive)
+- **Memory Optimized** - R6i, X2iezn (in-memory databases)
+- **Storage Optimized** - I4i, D3 (high sequential I/O)
+- **Accelerated Computing** - P4, G5 (GPU workloads)
+
+### Auto Scaling
+- **Target Tracking** - Maintain metric at target value
+- **Step Scaling** - Scale based on CloudWatch alarms
+- **Predictive Scaling** - ML-based scaling
+- **Scheduled Scaling** - Time-based scaling
+
+### Placement Groups
+- **Cluster** - Low latency, high throughput (same AZ)
+- **Partition** - Spread across hardware (different racks)
+- **Spread** - Each instance on different hardware
+
+## Containers and Serverless
+
+### Container Services
+- **ECS** - AWS-native container orchestration
+- **EKS** - Managed Kubernetes
+- **Fargate** - Serverless containers
+- **ECR** - Container registry with vulnerability scanning
+
+### Serverless Compute
+- **Lambda** - Event-driven functions (15min max, 10GB memory)
+- **Step Functions** - Workflow orchestration
+  - Standard: Long-running, full history
+  - Express: High-volume, short-duration
+
+### API Gateway
+- **REST API** - Full-featured, caching, transformations
+- **HTTP API** - Lower cost, faster, basic features
+- **WebSocket API** - Real-time bidirectional communication
+
+## Storage Services
+
+### S3 Storage Classes
+- **Standard** - Frequent access, 99.999999999% durability
+- **IA** - Infrequent access, lower cost
+- **One Zone-IA** - Single AZ, 20% less cost than IA
+- **Glacier Instant** - Archive with instant retrieval
+- **Glacier Flexible** - 1-5 minutes retrieval
+- **Glacier Deep Archive** - 12+ hours retrieval
+
+### S3 Features
+- **Versioning** - Multiple versions of objects
+- **MFA Delete** - Require MFA to delete versions
+- **Object Lock** - WORM compliance (requires versioning)
+- **Cross-Region Replication** - Async replication
+- **Transfer Acceleration** - CloudFront edge locations
+
+### Block Storage
+- **gp3** - General purpose, 3,000 IOPS baseline
+- **io2** - High IOPS, up to 64,000 IOPS
+- **st1** - Throughput optimized HDD
+- **sc1** - Cold HDD, lowest cost
+
+### File Systems
+- **EFS** - NFS, multi-AZ, POSIX compliant
+- **FSx for Windows** - SMB, Active Directory integration
+- **FSx for Lustre** - High-performance computing
+
+## Database Services
+
+### Relational Databases
+- **RDS Multi-AZ** - Synchronous replication for HA
+- **Read Replicas** - Asynchronous, read scaling
+- **Aurora Global Database** - <1s cross-region replication
+- **Aurora Serverless** - Auto-scaling, pay-per-use
+
+### NoSQL Databases
+- **DynamoDB** - Key-value, document store
+  - **Global Tables** - Multi-region active-active
+  - **DAX** - Microsecond latency caching
+  - **Streams** - Change data capture
+
+### Specialized Databases
+- **DocumentDB** - MongoDB-compatible
+- **Neptune** - Graph database
+- **Keyspaces** - Cassandra-compatible
+- **QLDB** - Immutable ledger
+- **Timestream** - Time-series data
+
+## Analytics and Big Data
+
+### Data Lake Architecture
+```
+S3 (Raw) → Glue ETL → S3 (Processed) → Athena/Redshift Spectrum
+```
+
+### Streaming Analytics
+- **Kinesis Data Streams** - Real-time data streaming
+  - 1MB/s or 1,000 records/s per shard
+  - Enhanced fan-out: 2MB/s per consumer
+- **Kinesis Data Firehose** - Load streaming data to destinations
+- **Kinesis Analytics** - Real-time analytics with SQL
+
+### Batch Processing
+- **EMR** - Managed Hadoop/Spark clusters
+- **Glue** - Serverless ETL service
+- **Batch** - Managed batch computing
+
+### Business Intelligence
+- **QuickSight** - Business analytics service
+- **Redshift** - Data warehouse
+- **Athena** - Serverless query service
+
+## Migration Strategies
+
+### 6 R's of Migration
+1. **Rehost** - Lift and shift
+2. **Replatform** - Lift, tinker, and shift
+3. **Repurchase** - Move to SaaS
+4. **Refactor** - Re-architect for cloud
+5. **Retire** - Decommission
+6. **Retain** - Keep on-premises
+
+### Migration Services
+- **Application Migration Service** - Lift and shift servers
+- **Database Migration Service** - Migrate databases
+- **Schema Conversion Tool** - Convert database schemas
+- **DataSync** - Online data transfer
+- **Snow Family** - Offline data transfer
+  - Snowcone: 8TB
+  - Snowball Edge: 80TB
+  - Snowmobile: 100PB
+
+## Disaster Recovery
+
+### RTO/RPO Strategies
+1. **Backup and Restore** - Hours to restore (lowest cost)
+2. **Pilot Light** - Core systems ready, scale up needed
+3. **Warm Standby** - Scaled-down version running
+4. **Active-Active** - Full production in multiple regions
+
+### DR Services
+- **AWS Backup** - Centralized backup across services
+- **Elastic Disaster Recovery** - Application-level replication
+- **Route 53 Health Checks** - Automatic failover
+
+## Security Best Practices
+
+### Encryption
+- **At Rest** - S3 (SSE-S3, SSE-KMS, SSE-C), EBS, RDS
+- **In Transit** - TLS/SSL, VPN, Direct Connect
+- **KMS** - Customer managed keys, automatic rotation
+- **CloudHSM** - Hardware security modules
+
+### Network Security
+- **Security Groups** - Stateful, instance-level firewall
+- **NACLs** - Stateless, subnet-level firewall
+- **WAF** - Web application firewall
+- **Shield** - DDoS protection
+- **Network Firewall** - Managed network firewall
+
+### Monitoring and Compliance
+- **CloudWatch** - Metrics, logs, alarms
+- **X-Ray** - Distributed tracing
+- **Systems Manager** - Operational insights
+- **Trusted Advisor** - Best practice recommendations
+
+## Cost Optimization
+
+### Pricing Models
+- **On-Demand** - Pay as you go
+- **Reserved Instances** - 1-3 year commitment
+- **Savings Plans** - Flexible pricing (EC2, Lambda, Fargate)
+- **Spot Instances** - Up to 90% discount, interruptible
+
+### Cost Management Tools
+- **Cost Explorer** - Analyze spending patterns
+- **Budgets** - Set cost and usage budgets
+- **Cost and Usage Reports** - Detailed billing data
+- **Compute Optimizer** - Right-sizing recommendations
+
+## Performance Optimization
+
+### Content Delivery
+- **CloudFront** - Global CDN, edge caching
+- **Global Accelerator** - Anycast IP, improved performance
+- **S3 Transfer Acceleration** - Upload via CloudFront
+
+### Database Performance
+- **Read Replicas** - Offload read traffic
+- **Connection Pooling** - RDS Proxy
+- **Caching** - ElastiCache (Redis/Memcached), DAX
+
+## Exam Tips
+
+### Common Scenarios
+- **Multi-region active-active** → Aurora Global Database + Route 53
+- **Hybrid DNS** → Route 53 Resolver endpoints
+- **Cross-account access** → IAM roles with external ID
+- **Large file uploads** → S3 multipart upload + Transfer Acceleration
+- **Real-time analytics** → Kinesis Data Streams + Analytics
+- **Disaster recovery** → Match RTO/RPO to strategy
+
+### Key Decision Factors
+- **Consistency requirements** → Strong vs eventual
+- **Latency requirements** → Regional vs global
+- **Cost constraints** → Reserved vs on-demand vs spot
+- **Compliance needs** → Data residency, encryption
+- **Scale requirements** → Horizontal vs vertical scaling
+
+### Red Flags (Usually Wrong Answers)
+- Single AZ deployments for production
+- Hardcoded credentials in code
+- Public subnets for databases
+- No encryption for sensitive data
+- No backup strategy
+- Overly complex solutions when simple ones existng** - 1:1, non-transitive, same/cross-region
 - **Transit Gateway** - Hub-and-spoke, transitive routing
 - **PrivateLink** - Private connectivity to services (no IGW/NAT)
 - **VPN** - Site-to-Site (IPSec), Client VPN (OpenVPN)
