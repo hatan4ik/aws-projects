@@ -1,5 +1,23 @@
 # AWS Solutions Architect Professional Cheat Sheet
 
+## FAANG Grooming Board
+
+Status flow suggestion: Backlog -> Deep Dive -> Drill -> Mock Ready. Each row points to sections below for detail.
+
+| Track | Why it matters at FAANG | Key focus in this sheet | Drill to prove it | Status |
+| --- | --- | --- | --- | --- |
+| Multi-Account guardrails | Separation of duties, blast-radius control, compliance | AWS Organizations (SCPs, OUs), consolidated billing, cross-account IAM roles, RAM sharing | Design a 5-account landing zone with centralized logging and a deny-by-default SCP set | Backlog |
+| Networking and connectivity | Global traffic, hybrid integration, low latency | VPC design (CIDR/subnets/RTs), peering vs Transit Gateway, PrivateLink, DX/VPN, Route 53 Resolver hybrid DNS | Sketch a multi-region, hybrid network showing TGW attachments and DNS forwarding paths | Backlog |
+| Identity and security services | Least privilege, auditability, regulated workloads | IAM policies/roles/STS, KMS vs CloudHSM, Secrets Manager, SGs vs NACLs, WAF/Shield/Network Firewall, Config/CloudTrail/GuardDuty/Security Hub/Macie | Build a secure cross-account access pattern with KMS encryption and WAF on an edge entrypoint | Backlog |
+| Compute and auto scaling | Cost-aware elasticity and availability | Instance families, placement groups, launch templates, ASG policies, on-demand vs RI/Savings Plans vs Spot | Choose an instance mix and scaling policy for a latency-sensitive tier with bursty load | Backlog |
+| Containers and serverless | Managed orchestration and agility | ECS/EKS (Fargate vs EC2), ECR scanning, Lambda limits, Step Functions (Standard vs Express), EventBridge, API Gateway | Whiteboard an event-driven service using EventBridge, Lambda, and Step Functions; justify ECS vs EKS for another workload | Backlog |
+| Storage and data protection | Durability, lifecycle efficiency, data residency | S3 classes/versioning/lifecycle/replication/object lock, EBS types/snapshots/multi-attach, EFS perf/throughput, FSx options | Pick storage backends for web, analytics, and backup tiers; include lifecycle and replication choices | Backlog |
+| Databases and caching | Correct data models, consistency, scale | RDS Multi-AZ/read replicas, Aurora global, DynamoDB (global tables, DAX), DocumentDB, Keyspaces, ElastiCache | Design a multi-region read-heavy app with write-local/read-global behavior and caching strategy | Backlog |
+| Analytics and streaming | Real-time + batch insights | Data lake flow (S3 -> Glue -> Athena/Redshift Spectrum), Kinesis Streams vs Firehose, EMR, QuickSight | Map an ingestion pipeline for clickstreams with partitioning, schema evolution, and consumption patterns | Backlog |
+| Migration and hybrid | Pragmatic adoption and risk reduction | 6 R's, MGN, DMS + SCT, DataSync, Snow Family, Transfer Family | Plan a phased migration for a legacy database and file share, including cutover and rollback | Backlog |
+| Resilience and disaster recovery | SLO adherence and customer trust | RTO/RPO strategies (backup/restore, pilot light, warm standby, active-active), AWS Backup, Elastic Disaster Recovery, Route 53 health checks | Produce a DR plan for a tiered app with target RTO/RPOs and failover testing steps | Backlog |
+| Cost and performance efficiency | Operating leverage at scale | EC2 pricing models, Savings Plans vs RI vs Spot, S3 IA/Glacier, Budgets/Cost Explorer/Compute Optimizer, latency tools (CloudFront, Global Accelerator, S3 TA) | Right-size a workload with a savings plan strategy and latency optimizations for global users | Backlog |
+
 ## Design Principles
 
 ### Well-Architected Framework Pillars
