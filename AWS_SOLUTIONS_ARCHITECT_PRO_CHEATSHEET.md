@@ -183,6 +183,325 @@ Root
 - **DMS** - Database Migration Service (homogeneous/heterogeneous)
 - **SCT** - Schema Conversion Tool
 - **DataSync** - Online data transfer (NFS, SMB, S3, EFS, FSx)
+- **Snow Family** - Offline data transfer (Snowcone 8TB, Snowball 80TB, Snowmobile 100PB)
+- **Transfer Family** - SFTP/FTPS/FTP to S3/EFS
+
+## Disaster Recovery
+
+### RTO/RPO Strategies (Cost ↑, RTO/RPO ↓)
+1. **Backup & Restore** - Hours/Days RTO, Hours RPO, Lowest cost
+2. **Pilot Light** - 10s of minutes RTO, Minutes RPO, Core services running
+3. **Warm Standby** - Minutes RTO, Seconds RPO, Scaled-down replica
+4. **Multi-Site Active/Active** - Real-time RTO, Real-time RPO, Highest cost
+
+### Services
+- **AWS Backup** - Centralized backup across services
+- **Elastic Disaster Recovery** - Continuous replication, fast recovery
+
+## Analytics
+
+### Data Lake Pattern
+```
+S3 (Raw) → Glue ETL → S3 (Processed) → Athena/Redshift Spectrum
+                                      ↓
+                                  QuickSight
+```
+
+### Services
+- **Kinesis Data Streams** - Real-time, 1MB/s per shard, 24hr-365 day retention
+- **Kinesis Firehose** - Near real-time (60s buffer), auto-scaling, S3/Redshift/ES/HTTP
+- **Glue** - Serverless ETL, Data Catalog, crawlers
+- **Athena** - Serverless SQL on S3, pay per query
+- **EMR** - Managed Hadoop/Spark, transient or long-running
+- **QuickSight** - BI dashboards, SPICE in-memory engine
+
+## Cost Optimization
+
+### EC2 Pricing
+- **On-Demand** - Pay per second, no commitment
+- **Reserved** - 1/3 year, up to 72% savings, specific instance type
+- **Savings Plans** - 1/3 year, up to 72% savings, flexible (compute or EC2)
+- **Spot** - Up to 90% savings, 2-min termination notice
+
+### Cost Tools
+- **Cost Explorer** - Visualize spending, forecast
+- **Budgets** - Alerts on thresholds, RI/Savings Plan utilization
+- **Compute Optimizer** - Right-sizing recommendations (ML-based)
+- **Trusted Advisor** - Best practice checks (cost, performance, security, fault tolerance)
+
+## Exam-Critical Patterns
+
+### Service Limits (Memorize These)
+- **Lambda** - 15min timeout, 10GB memory, 512MB /tmp, 6MB sync payload, 250KB async
+- **API Gateway** - 29s timeout, 10MB payload
+- **S3** - 5TB object max, 5GB single PUT, 100 buckets default
+- **DynamoDB** - 400KB item size, 25 GSI per table
+- **SQS** - 256KB message, 14 day retention, 120K in-flight (standard), 20K (FIFO)
+- **SNS** - 256KB message
+- **Step Functions** - 25K events, 1 year execution (Standard), 5 min (Express)
+- **VPC** - 5 VPCs per region, 200 subnets per VPC, 5 EIPs
+
+### Common Scenarios → Solutions
+
+**Lowest Latency:**
+- Global users → CloudFront + S3/ALB origin
+- Static IP required → Global Accelerator
+- Regional users → Local Zones, Wavelength
+- Database → ElastiCache, DAX, Aurora read replicas
+
+**Highest Throughput:**
+- S3 uploads → Transfer Acceleration, multipart upload
+- Network → Enhanced Networking (SR-IOV), Placement Groups (cluster)
+- Database writes → DynamoDB, Aurora parallel query
+
+**Most Cost-Effective:**
+- Storage → S3 IA/Glacier, lifecycle policies
+- Compute → Spot, Savings Plans, right-sizing
+- Data transfer → VPC endpoints (no NAT/IGW charges), CloudFront
+
+**Highest Availability:**
+- Multi-AZ → RDS, EFS, ALB, NAT Gateway
+- Multi-Region → Route 53, CloudFront, S3 CRR, DynamoDB Global Tables, Aurora Global
+- Health checks → Route 53 failover, ALB target health
+
+**Decouple Components:**
+- Async → SQS (standard for throughput, FIFO for ordering)
+- Pub/Sub → SNS, EventBridge
+- Orchestration → Step Functions
+- Streaming → Kinesis
+
+**Audit & Compliance:**
+- API calls → CloudTrail (all regions, log file validation, S3 + CloudWatch Logs)
+- Resource changes → Config (rules, remediation, aggregator)
+- Network traffic → VPC Flow Logs
+- Threats → GuardDuty, Security Hub
+- Data classification → Macie
+
+**Encryption:**
+- At rest → S3 (SSE-S3, SSE-KMS, SSE-C), EBS, RDS, DynamoDB
+- In transit → TLS/SSL, VPN, CloudFront, ALB
+- Key management → KMS (AWS managed, customer managed, rotation), CloudHSM (FIPS 140-2 L3)
+
+### Decision Trees
+
+**Storage Selection:**
+```
+Block storage? → EBS (persistent), Instance Store (ephemeral)
+File storage? → EFS (Linux, NFS), FSx (Windows/Lustre/ONTAP)
+Object storage? → S3
+Archive? → Glacier (3-5hr retrieval), Deep Archive (12hr)
+```
+
+**Database Selection:**
+```
+Relational (OLTP)? → RDS (managed), Aurora (performance)
+Relational (OLAP)? → Redshift
+Key-value? → DynamoDB
+Document? → DocumentDB
+Graph? → Neptune
+Time-series? → Timestream
+Ledger? → QLDB
+```
+
+**Compute Selection:**
+```
+Long-running? → EC2, ECS/EKS
+Event-driven? → Lambda
+Batch processing? → Batch
+Containers? → ECS (AWS-native), EKS (Kubernetes)
+Serverless containers? → Fargate
+```
+
+### Red Flags (Wrong Answers)
+
+❌ **Snowball for < 10TB** → Use DataSync or Direct Connect
+❌ **RDS for > 64TB** → Use Aurora (128TB) or shard
+❌ **Single AZ for production** → Always Multi-AZ
+❌ **Hardcoded credentials** → Use IAM roles, Secrets Manager
+❌ **Public S3 buckets** → Use VPC endpoints, PrivateLink, pre-signed URLs
+❌ **NAT Gateway for VPC-to-VPC** → Use VPC Peering, Transit Gateway, PrivateLink
+❌ **EBS for shared storage** → Use EFS (Linux) or FSx (Windows)
+❌ **Kinesis Streams for simple S3 delivery** → Use Firehose
+❌ **Lambda for > 15min** → Use Fargate, Batch, or Step Functions
+❌ **SQS FIFO for high throughput** → Use Standard (300 msg/s FIFO vs unlimited Standard)
+
+### Time-Based Decisions
+
+**Real-time (< 1s):**
+- Lambda, API Gateway, DynamoDB, ElastiCache, Kinesis Data Streams
+
+**Near real-time (seconds to minutes):**
+- Kinesis Firehose (60s buffer), Step Functions Express, ECS/Fargate
+
+**Batch (minutes to hours):**
+- Step Functions Standard, Batch, EMR, Glue
+
+**Scheduled:**
+- EventBridge rules, Lambda scheduled, Batch scheduled
+
+### Multi-Region Patterns
+
+**Active-Passive:**
+- Route 53 failover routing
+- Primary region serves traffic, secondary on standby
+- RDS cross-region read replica (promote on failover)
+
+**Active-Active:**
+- Route 53 latency/geolocation routing
+- Both regions serve traffic
+- DynamoDB Global Tables, Aurora Global Database
+- S3 CRR for data sync
+
+**Data Residency:**
+- Region selection for compliance (GDPR, data sovereignty)
+- S3 Object Lock for WORM
+- KMS regional keys
+
+### Hybrid Connectivity
+
+**VPN (< 1 Gbps, quick setup):**
+- Site-to-Site VPN over internet
+- Redundant tunnels for HA
+- BGP for dynamic routing
+
+**Direct Connect (1-100 Gbps, consistent latency):**
+- Dedicated connection to AWS
+- Private VIF (VPC), Public VIF (S3, DynamoDB)
+- LAG for aggregated bandwidth
+- DX Gateway for multi-VPC/region
+
+**Hybrid DNS:**
+- Route 53 Resolver Inbound (on-prem → AWS)
+- Route 53 Resolver Outbound (AWS → on-prem)
+- Conditional forwarding rules
+
+### Security Best Practices
+
+**IAM:**
+- Least privilege principle
+- Use roles, not users for applications
+- MFA for privileged accounts
+- Password policy, credential rotation
+- Service Control Policies (SCPs) for guardrails
+
+**Network:**
+- Private subnets for workloads
+- Security groups (allow), NACLs (deny)
+- VPC Flow Logs for traffic analysis
+- WAF for application layer protection
+- Shield Advanced for DDoS mitigation
+
+**Data:**
+- Encrypt at rest (KMS) and in transit (TLS)
+- S3 bucket policies, block public access
+- Versioning + MFA Delete for critical data
+- Secrets Manager for credential rotation
+- Macie for PII discovery
+
+**Monitoring:**
+- CloudTrail for all API calls
+- Config for resource compliance
+- GuardDuty for threat detection
+- Security Hub for centralized findings
+- CloudWatch alarms for anomalies
+
+### Performance Optimization
+
+**Caching Layers:**
+```
+User → CloudFront (edge) → ALB → ElastiCache (app) → RDS (data)
+```
+
+**Database Performance:**
+- Read replicas for read-heavy workloads
+- ElastiCache/DAX for caching
+- Connection pooling (RDS Proxy)
+- Partition keys (DynamoDB)
+- Indexes (RDS, DynamoDB GSI/LSI)
+
+**Network Performance:**
+- Enhanced Networking (SR-IOV)
+- Placement Groups (cluster for low latency)
+- VPC endpoints (avoid NAT/IGW)
+- Direct Connect for consistent latency
+
+### Compliance Keywords
+
+**HIPAA:**
+- Eligible services (most, but not all)
+- BAA (Business Associate Agreement) required
+- Encrypt PHI at rest and in transit
+
+**PCI DSS:**
+- Validated services for cardholder data
+- Shared responsibility model
+- Network segmentation, encryption
+
+**GDPR:**
+- Data residency (EU regions)
+- Right to be forgotten (delete data)
+- Data portability
+- Encryption and access controls
+
+**SOC/ISO:**
+- Audit reports available in Artifact
+- Demonstrates AWS controls
+
+## Last-Minute Review
+
+### Must-Know Service Combinations
+
+1. **Web Application (HA, Scalable):**
+   - Route 53 → CloudFront → ALB → ASG (EC2/ECS) → RDS Multi-AZ → ElastiCache
+
+2. **Serverless API:**
+   - API Gateway → Lambda → DynamoDB → S3
+
+3. **Data Lake:**
+   - S3 → Glue (ETL) → Athena/Redshift Spectrum → QuickSight
+
+4. **Real-time Analytics:**
+   - Kinesis Data Streams → Lambda/Kinesis Analytics → S3/DynamoDB
+
+5. **Hybrid Connectivity:**
+   - On-prem → Direct Connect/VPN → Transit Gateway → VPCs
+
+6. **Multi-Account Security:**
+   - Organizations (SCPs) → CloudTrail (centralized) → Config (aggregator) → Security Hub
+
+7. **Disaster Recovery:**
+   - Primary Region (RDS Multi-AZ) → Cross-region read replica → Route 53 failover
+
+8. **Migration:**
+   - Assessment (Migration Hub) → MGN (servers) + DMS (databases) → Validation
+
+### Exam Day Checklist
+
+✅ **Read questions carefully** - Look for keywords (most cost-effective, lowest latency, highest availability)
+✅ **Eliminate wrong answers** - Use red flags list
+✅ **Consider constraints** - Time, budget, compliance, existing infrastructure
+✅ **Think multi-layer** - Security, monitoring, backup for every solution
+✅ **AWS-native first** - Prefer managed services over self-managed
+✅ **Scalability matters** - Choose services that scale automatically
+✅ **Flag and review** - Mark uncertain questions, come back later
+
+### Common Traps
+
+⚠️ **Over-engineering** - Simplest solution often correct
+⚠️ **Ignoring constraints** - Budget, time, compliance mentioned for a reason
+⚠️ **Single point of failure** - Always consider HA/DR
+⚠️ **Vendor lock-in concerns** - Exam assumes AWS-first approach
+⚠️ **On-premises thinking** - Cloud-native patterns differDS instead of self-managed)
+3. **Repurchase** - Move to SaaS
+4. **Refactor** - Re-architect (serverless, containers)
+5. **Retire** - Decommission
+6. **Retain** - Keep on-premises
+
+### Migration Services
+- **MGN** - Application Migration Service (rehost)
+- **DMS** - Database Migration Service (homogeneous/heterogeneous)
+- **SCT** - Schema Conversion Tool
+- **DataSync** - Online data transfer (NFS, SMB, S3, EFS, FSx)
 - **Snow Family** - Offline data transfer (Snowcone, Snowball, Snowmobile)
 - **Transfer Family** - SFTP/FTPS/FTP to S3/EFS
 
