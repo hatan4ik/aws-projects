@@ -568,6 +568,132 @@ B) Application Migration Service (MGN) ✅ (continuous replication)
 C) DataSync ❌ (for file data, not servers)
 D) Snowball ❌ (offline, high downtime)
 
+## Advanced Board-Review Scenarios (New)
+
+### Data Residency and Sovereignty
+
+**Example 13: EU PII with Global Analytics**
+```
+Scenario: EU customer PII must never leave eu-central-1. Analytics team in us-east-1
+needs aggregated insights without exposing PII.
+
+Architecture:
+- Control Tower with region-scoped OUs (EU, NA). SCP denies non-EU regions for EU workloads.
+- Workload account (EU): S3 lake (single-Region KMS CMK, NOT multi-Region key), Lake Formation,
+  Glue catalog. Macie for discovery; GuardDuty delegated admin.
+- Processing: EMR Serverless/Glue jobs in eu-central-1 to produce anonymized aggregates.
+- Data export path: Write sanitized parquet to "share" bucket with Object Lock + signed manifests.
+- Cross-region transfer: S3 CRR from sanitized bucket to us-east-1 analytics account.
+- Analytics account (US): Athena/Redshift Spectrum on sanitized data only. No KMS grants to raw key.
+
+Trade-offs & Board Notes:
+- Multi-Region keys replicate material outside region → avoid for strict residency.
+- Keep VPC endpoints + private DNS; block internet egress via egress-only controls/NACLs.
+- Use aws:PrincipalOrgID in bucket policies to restrict to org. Add Service Quotas alerts on CRR.
+
+Exam Pattern:
+Question leans toward "keep raw data in-region, export anonymized aggregates; use single-Region CMK".
+```
+
+### SaaS Multi-Tenant Isolation
+
+**Example 14: Pooled + Siloed Tenancy Mix**
+```
+Scenario: SaaS with standard (pooled) tier and regulated (siloed) tier.
+Needs per-tenant isolation, noisy-neighbor control, and cost attribution.
+
+Architecture:
+- Identity: Cognito or IAM Identity Center → OIDC JWT with tenant_id claim; STS session tags.
+- Pooled tier: EKS/ECS on Fargate; VPC Lattice for service-to-service auth; ALB per app.
+- Data plane (pooled): DynamoDB with per-tenant PK; row-level IAM conditions on tenant_id tag.
+  S3 prefixes per tenant with bucket policy `aws:PrincipalTag/tenant = s3:prefix/tenant/*`.
+- Siloed tier: Per-tenant account + VPC + isolated RDS/Aurora; shared service (billing, auth)
+  consumed via PrivateLink to provider VPC.
+- Observability: CloudWatch cross-account observability; X-Ray with tenant metadata; per-tenant
+  log groups and retention. Cost allocation tags + CUR to Athena.
+
+Board Notes:
+- Lattice gives auth + routing without mesh sidecars; good for mixed compute (Lambda/ECS/EKS).
+- Permission boundaries for delegated tenant admins; deny cross-tenant access via SCP conditions.
+- For noisy neighbors, use DynamoDB adaptive capacity + per-tenant WCU/RCU throttling; add
+  WAF rate-limits with tenant keys.
+
+Exam Pattern:
+Look for "per-tenant account + PrivateLink for regulated tenants; tag-based isolation for pooled".
+```
+
+### Streaming at Scale
+
+**Example 15: 250K events/sec IoT Ingestion**
+```
+Scenario: 1KB payloads, 250K events/sec (~250 MB/s). Need <5s end-to-end, multiple consumers.
+
+Architecture:
+- Kinesis Data Streams in on-demand mode (auto-shard). Baseline capacity ≈ 4 MB/s/shard.
+  Expect ~63 shards for 250 MB/s; pre-warm via PutRecords if steady state.
+- Enhanced fan-out for 3 consumers (reduces shared 2 MB/s/shard limit).
+- Kinesis Data Analytics (Flink) for stream join/enrichment; output to Firehose → S3 parquet +
+  partitioning by dt/hour; secondary stream to Lambda for alerts.
+- Partition key choice: device_id to balance across shards (avoid hot shards).
+- DLQ: Kinesis → OnFailure to SQS with retries; CloudWatch alarms on IteratorAge.
+
+Trade-offs:
+- MSK suits strict ordering and Kafka APIs but adds ops; Kinesis on-demand reduces capacity planning.
+- If consumers need replay beyond 7 days, enable Extended Retention.
+- Firehose simplifies batch→S3/Redshift; for exactly-once semantics in Flink use sink with
+  checkpoints to S3/FSx for Lustre.
+
+Exam Pattern:
+Math shard capacity (1 MB/s in, 2 MB/s out per shard) and pick Kinesis on-demand + enhanced fan-out.
+```
+
+### HPC / GenAI Training
+
+**Example 16: Distributed Training with EFA**
+```
+Scenario: Train transformer model on 64 GPUs, minimize time-to-train and checkpoint stalls.
+
+Architecture:
+- AWS ParallelCluster with Slurm; p4d.24xlarge (8x A100) in cluster placement group.
+- Networking: EFA + OSU/NCCL tuned AMIs; placement group "cluster" for low latency.
+- Storage: FSx for Lustre linked to S3 for datasets; checkpoint to FSx and asynchronously copy to S3.
+- Scaling policy: MixedInstancesPolicy ASG with Spot (70%) + On-Demand (30%) for capacity floor.
+- Observability: CloudWatch agent + DCGM metrics; SSM Session Manager for ops; automated requeue
+  on Spot interruption via Slurm resume scripts.
+
+Trade-offs:
+- EFS not ideal for high-throughput HPC; FSx for Lustre gives 200+ MB/s/TiB.
+- Keep S3 transfer acceleration off unless cross-region ingest; prefer local FSx read-through.
+- SnapStart not applicable; use warm pools for control nodes.
+
+Exam Pattern:
+If question mentions MPI/horovod/NCCL and low latency, answer is EFA + placement group + FSx Lustre.
+```
+
+### Incident Containment & Kill Switch
+
+**Example 17: Compromised Access Key Response**
+```
+Scenario: Access key leaked; attacker launching resources across accounts. Need 5-minute containment.
+
+Response Architecture:
+- GuardDuty finding → EventBridge → Step Functions "KillSwitch".
+- Actions:
+  1) Block key in AWS IAM (set to inactive) or quarantine role via SCP (deny sts:AssumeRole for ARN).
+  2) Apply quarantine SCP to impacted OU: deny ec2:RunInstances, iam:CreateUser, kms:Decrypt, s3:PutObject.
+  3) Isolate VPC via Network Firewall default-deny or detach IGWs/NAT (RunCommand/SSM).
+  4) Snapshot evidence: EBS snapshots, S3 object locks, CloudTrail lookup → central S3 bucket.
+  5) Notify security chat/on-call (SNS + Chatbot); open OpsItem in Systems Manager.
+
+Board Notes:
+- Use service-linked role for SCP propagation (fast, org-wide). Keep pre-staged quarantine policy IDs.
+- Logging account must be write-only; do not rotate KMS keys during incident.
+- For third-party, use external ID and scope-down session policies to minimize blast radius.
+
+Exam Pattern:
+Look for automated EventBridge → SCP/quarantine, not manual console steps.
+```
+
 ## Real Exam Question Patterns
 
 ### Pattern 1: "Most Cost-Effective"
